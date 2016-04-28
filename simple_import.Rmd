@@ -1,0 +1,55 @@
+---
+title: "Import your Apple Watch heart rate data into R"
+author: "Jeff Johnston"
+date: "April 28, 2016"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+library(pander)
+library(magrittr)
+library(dplyr)
+library(xml2)
+
+knitr::opts_chunk$set(echo = TRUE, comment=NA)
+```
+
+```{r import_xml}
+
+records <- read_xml("export.xml") %>%
+           xml_children
+
+record_types <- xml_attr(records, "type")
+
+record_types %>%
+  table(dnn="Record_type") %>%            
+  as.data.frame %>%
+  arrange(desc(Freq)) %>%
+  mutate(Count = prettyNum(Freq, big.mark=",")) %>%
+  select(-Freq) %>%
+  pander(caption="Counts of each record type")
+
+
+heart_rate_records <- records[which(record_types == "HKQuantityTypeIdentifierHeartRate")]
+
+single_record_attrs <- xml_attrs(heart_rate_records[1])[[1]]
+data_frame(attribute = names(single_record_attrs),
+           value     = single_record_attrs) %>%
+  pander(caption="Single heart rate record")
+
+heart_rate_df <- data_frame(date       = as.POSIXct(xml_attr(heart_rate_records, "endDate")),
+                            heart_rate = as.integer(xml_attr(heart_rate_records, "value")))
+
+saveRDS(heart_rate_df, file="heart_rate_df.rds")
+
+heart_rate_df %>%
+  head %>%
+  pander(caption="Heart rate data")
+```
+
+
+
+
+
